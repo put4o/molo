@@ -29,16 +29,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.method == "LLM":
-        pred_folder = f"./results/{args.dataset}/LLM"
-        pred_paths = [f"./results/{args.dataset}/LLM/{args.model_name}_top{args.topk}.json"]
+        pred_folder = f"/gz-data/results/{args.dataset}/LLM"
+        pred_paths = [f"/gz-data/results/{args.dataset}/LLM/{args.model_name}_top{args.topk}.json"]
     elif args.method == "VLM":
-        pred_folder = f"./results/{args.dataset}/{args.model_name}"
+        pred_folder = f"/gz-data/results/{args.dataset}/{args.model_name}"
         if args.retriever != "None":
-            pred_paths = [f"./results/{args.dataset}/{args.model_name}/{args.retriever}_top{args.topk}.json"]
+            pred_paths = [f"/gz-data/results/{args.dataset}/{args.model_name}/{args.retriever}_top{args.topk}.json"]
         else:
-            pred_paths = [f"./results/{args.dataset}/{args.model_name}/Direct.json"]
+            pred_paths = [f"/gz-data/results/{args.dataset}/{args.model_name}/Direct.json"]
     elif args.method == "MDocAgent": 
-        pred_folder = f"./results/{args.dataset}/mdocagent"
+        pred_folder = f"/gz-data/results/{args.dataset}/mdocagent"
         # TODO: fix time 
         pred_paths = [f"./results/{args.dataset}/mdocagent/_.json"]
         args.folder_eval = True

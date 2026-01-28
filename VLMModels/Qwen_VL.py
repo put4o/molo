@@ -13,18 +13,17 @@ def format_image_path(raw_path):
 
 def init_model(model_name, device=torch.device("cuda")):
     if "lora" in model_name: 
-        # TODO: adjust the path based on your actual environment
-        model_path = "xxwu/MoLoRAG-QwenVL-3B"
+        # Use local path
+        model_path = "/gz-data/models"
         print(f"Loading LoRA model from {model_path}")
     elif "3B" in model_name:
-        model_path =  "Qwen/Qwen2.5-VL-3B-Instruct"
+        model_path =  "/gz-data/models"
     elif "7B" in model_name:
-        model_path = "Qwen/Qwen2.5-VL-7B-Instruct"
+        model_path = "/gz-data/models"
 
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         model_path,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
         device_map=device).eval()
     
     min_pixels = 256 * 28 * 28 
@@ -39,9 +38,9 @@ def get_response_concat(model, question, image_path_list, max_new_tokens=1024, t
     msgs = []
 
     if isinstance(image_path_list, list):
-        msgs.extend([dict(type='image', image=format_image_path(p)) for p in image_path_list])
+        msgs.extend([dict(type='image', image=p) for p in image_path_list])
     else:
-        msgs = [dict(type='image', image=format_image_path(image_path_list))]
+        msgs = [dict(type='image', image=image_path_list)]
     msgs.append(dict(type='text', text=question))
     messages = [{
         "role": "user",

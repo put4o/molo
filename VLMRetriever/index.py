@@ -5,7 +5,7 @@ import argparse
 import torch
 from tqdm import tqdm
 import sys 
-sys.path.append("../")
+sys.path.append("/root/MoLoRAG")
 from utils import prepare_files
 
 
@@ -38,8 +38,8 @@ def encode_document(doc_path, doc_id, batch_size=32, resolution=144, save_emb=Tr
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="MMLong", choices=["MMLong", "LongDocURL", "PaperTab", "FetaTab"])
-    parser.add_argument("--save_dir", type=str, default="../tmp/tmp_embs")
-    parser.add_argument("--img_save_dir", type=str, default="../tmp/tmp_imgs")
+    parser.add_argument("--save_dir", type=str, default="/gz-data/tmp/tmp_embs")
+    parser.add_argument("--img_save_dir", type=str, default="/gz-data/tmp/tmp_imgs")
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--model_name", type=str, default="vidore/colpali")
     parser.add_argument("--save_img", action="store_true")
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     model = ColPali.from_pretrained(args.model_name, torch_dtype=torch.bfloat16, device_map=device).eval()
     processor = ColPaliProcessor.from_pretrained(args.model_name)
 
-    documents = prepare_files(f"../dataset/{args.dataset}", suffix=".pdf")
+    documents = prepare_files(f"/gz-data/dataset/{args.dataset}", suffix=".pdf")
     save_dir, img_save_dir = f"{args.save_dir}/{args.dataset}", f"{args.img_save_dir}/{args.dataset}"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -61,4 +61,4 @@ if __name__ == "__main__":
             print(f"Embeddings for {doc_path} already exists.")
             continue 
         
-        encode_document(doc_path=f"../dataset/{args.dataset}/{doc_path}", doc_id=doc_id, batch_size=args.batch_size, save_img=args.save_img)
+        encode_document(doc_path=f"/gz-data/dataset/{args.dataset}/{doc_path}", doc_id=doc_id, batch_size=args.batch_size, save_img=args.save_img)

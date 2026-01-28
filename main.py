@@ -32,11 +32,11 @@ def main_lvlm_QA(args):
         print(f"Loading samples from {output_path}...")
         samples = json.load(open(output_path, "r"))
     else:
-        if args.retriever != "None" and os.path.exists(f"./dataset/retrieved/samples_{args.dataset}_{args.retriever}.json"):
+        if args.retriever != "None" and os.path.exists(f"/gz-data/dataset/retrieved/samples_{args.dataset}_{args.retriever}.json"):
             print(f"Loading samples with retrieved pages from {args.retriever}...")
-            input_path = f"./dataset/retrieved/samples_{args.dataset}_{args.retriever}.json"
+            input_path = f"/gz-data/dataset/retrieved/samples_{args.dataset}_{args.retriever}.json"
         else:
-            input_path = f"./dataset/samples_{args.dataset}.json"
+            input_path = f"/gz-data/dataset/samples_{args.dataset}.json"
         samples = json.load(open(input_path, "r"))
 
     model, get_response_concat = load_vlm_model(args.model_name, device)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     args.max_pages = 1000 if args.retriever != "None" else args.max_pages
     print(args)
 
-    document_folder, img_folder, result_folder = f"./dataset/{args.dataset}", f"./tmp/tmp_imgs/{args.dataset}", f"./results/{args.dataset}/{args.model_name}"
+    document_folder, img_folder, result_folder = f"/gz-data/dataset/{args.dataset}", f"/gz-data/tmp/tmp_imgs/{args.dataset}", f"/gz-data/results/{args.dataset}/{args.model_name}"
     os.makedirs(result_folder, exist_ok=True)
 
     retrieve_suffix = "Direct" if args.retriever == "None" else f"{args.retriever}_top{args.topk}"

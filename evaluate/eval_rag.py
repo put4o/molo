@@ -62,7 +62,7 @@ if __name__ == "__main__":
     
     # evaluate ours (beamsearch-based)
     for retrieve_method in ["base", "beamsearch", "beamsearch_LoRA"]:
-        filepath = f"../dataset/retrieved/samples_{args.dataset}_{retrieve_method}.json"
+        filepath = f"/gz-data/dataset/retrieved/samples_{args.dataset}_{retrieve_method}.json"
         if not os.path.exists(filepath):
             continue 
         
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         print(table, '\n')
     
     # evaluate mdocagent (retriever-based) 
-    filepath = f"../dataset/retrieved/samples_{args.dataset}_mdocagent.json"
+    filepath = f"/gz-data/dataset/retrieved/samples_{args.dataset}_mdocagent.json"
     if os.path.exists(filepath):
         samples = json.load(open(filepath, 'r')) 
         

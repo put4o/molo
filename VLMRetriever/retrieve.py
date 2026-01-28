@@ -16,11 +16,11 @@ from data_collection import generate_relevance_prompt as rel_prompt, generate_re
 
 def query_vlm_relevance(query, doc_info, vlm_model):
     doc_id, page_num = doc_info 
-    if not os.path.exists(f"../tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png"):
-        doc_snapshot = convert_from_path(pdf_path=f"../dataset/{args.dataset}/{doc_id}.pdf", first_page=page_num, last_page=page_num, dpi=144)[0] # resolution is fixed to 144
-        doc_snapshot.save(f"../tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png", "PNG")
+    if not os.path.exists(f"/gz-data/tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png"):
+        doc_snapshot = convert_from_path(pdf_path=f"/gz-data/dataset/{args.dataset}/{doc_id}.pdf", first_page=page_num, last_page=page_num, dpi=144)[0] # resolution is fixed to 144
+        doc_snapshot.save(f"/gz-data/tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png", "PNG")
     
-    img_path = f"./tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png"
+    img_path = f"/gz-data/tmp/tmp_imgs/{args.dataset}/{doc_id}-{page_num}.png"
     prompt = rel_prompt(query) if args.dataset == "MMLong" else advanced_rel_prompt(query)
     
     try:
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     args = argparse.ArgumentParser()
     args.add_argument("--dataset", type=str, default="MMLong", choices=["MMLong", "LongDocURL", "FetaTab", "PaperTab"])
     args.add_argument("--method", type=str, default="base", choices=["base", "beamsearch"])
-    args.add_argument("--emb_root", type=str, default="../tmp/tmp_embs")
+    args.add_argument("--emb_root", type=str, default="/gz-data/tmp/tmp_embs")
     args.add_argument("--device", type=str, default="cuda:0")
     args.add_argument("--encoder", type=str, default="vidore/colpali")
     args.add_argument("--top_k", type=int, default=20)
@@ -163,9 +163,9 @@ if __name__ == "__main__":
     processor = ColPaliProcessor.from_pretrained(args.encoder)
     doc_retriever = DocumentRetriever(encoder=model, processor=processor, device=device)
     
-    samples = json.load(open(f"../dataset/samples_{args.dataset}.json", 'r'))
+    samples = json.load(open(f"/gz-data/dataset/samples_{args.dataset}.json", 'r'))
     vlm_suffix = "_LoRA" if args.method == "beamsearch" and "lora" in args.model_name else ""
-    retrieve_file = f"../dataset/retrieved/samples_{args.dataset}_{args.method}{vlm_suffix}.json"
+    retrieve_file = f"/gz-data/dataset/retrieved/samples_{args.dataset}_{args.method}{vlm_suffix}.json"
 
     if args.method == "beamsearch":
         from VLMModels.Qwen_VL import init_model, get_response_concat
