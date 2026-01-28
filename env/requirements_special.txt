@@ -1,0 +1,16 @@
+# ==========================================
+# 特殊依赖包（需要从源码编译）
+# ==========================================
+# 注意：这些包需要先安装 torch，并且可能需要 CUDA 环境
+# 安装方法：pip install --no-build-isolation 包名
+# 或者分别手动安装：
+#   pip install flash_attn
+#   pip install xformers
+#   pip install triton
+#   pip install colpali_engine
+# ==========================================
+
+flash_attn==2.7.4.post1
+xformers==0.0.29.post3
+triton==3.2.0
+colpali_engine==0.3.8
