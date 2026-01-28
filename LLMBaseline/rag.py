@@ -28,7 +28,7 @@ def index_single_pdf(filepath, doc_id, default_parser=True):
     # Step 3 - Index the chunks 
     # TODO: Set your DashScope API key here
     embeddings = DashScopeEmbeddings(model="text-embedding-v1", 
-                                     dashscope_api_key="YOUR Key HERE",)
+                                     dashscope_api_key="sk-e69f7d24a45743e2996e26ffe5d1d41a",)
     cur_savepath = f"{save_dir}/{doc_id}"
 
     faiss_index = FAISS.from_documents(chunks, embeddings)

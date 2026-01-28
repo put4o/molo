@@ -5,8 +5,8 @@ from openai import OpenAI
 
 OPENAI_CONFIG = {
     "MODEL": "gpt-4o-mini",
-    "ENDPOINT": "https://api.deerapi.com/v1/chat/completions",
-    "API_KEY": "",
+    "ENDPOINT": "https://api.chatanywhere.tech/v1/chat/completions",
+    "API_KEY": "sk-PXZNQeaNDDt8ci8UD9vLcDry31NwenEYXnMsoQupcNDl5MeY",
 }
 
 
@@ -18,7 +18,7 @@ DEEPSEEK_CONFIG = {
 
 QWEN_CONFIG = {
     "ENDPOINT": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "API_KEY": ""
+    "API_KEY": "sk-e69f7d24a45743e2996e26ffe5d1d41a"
 }
 
 
