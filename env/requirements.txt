@@ -86,6 +86,9 @@ cycler==0.12.1
 pymupdf==1.25.3
 pdf2image==1.17.0
 
+# BM25 稀疏检索
+rank-bm25==0.2.2
+
 # Web 相关
 fastapi==0.115.12
 uvicorn==0.34.0
