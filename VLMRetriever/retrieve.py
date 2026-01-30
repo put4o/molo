@@ -155,7 +155,7 @@ if __name__ == "__main__":
     args.add_argument("--encoder", type=str, default="vidore/colpali")
     args.add_argument("--top_k", type=int, default=20)
     args.add_argument("--model_name", type=str, default="QwenVL-3B", choices=["QwenVL-3B", "QwenVL-3B-lora"])
-    args.add_argument("--threshold", type=float, default=0.3) # 0.3 default; 0.4 for MMLong + QwenVL-3B-lora
+    args.add_argument("--threshold", type=float, default=0.4) # 0.3 default; 0.4 for MMLong + QwenVL-3B-lora
 
     # beamsearch specific
     args.add_argument("--alpha", type=float, default=0.4) # 0.4 for MMLong and (currently) 0.6 for LongDocURL
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         vlm_model = init_model(args.model_name, device=device)
         doc2graph = {}
         for doc_id, doc_emb in tqdm(doc2emb.items(), desc="Constructing Page Graph"):
-            cur_graph = construct_page_graph(doc_emb, threshold=0.8, sim_measure=args.sim_measure)
+            cur_graph = construct_page_graph(doc_emb, threshold=args.threshold, sim_measure=args.sim_measure)
             doc2graph[doc_id] = deepcopy(cur_graph)
 
     for sample in tqdm(samples, desc="Retrieving"):
