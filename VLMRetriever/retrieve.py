@@ -3,7 +3,7 @@ from tqdm import tqdm
 from colpali_engine.models import ColPali, ColPaliProcessor
 import argparse
 import sys 
-sys.path.append("../")
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import load_all_doc_embeddings, construct_page_graph
 import json 
 from pdf2image import convert_from_path
