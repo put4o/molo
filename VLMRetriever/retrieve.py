@@ -79,9 +79,9 @@ class DocumentRetriever:
         # 保存基于向量相似度的初始 top-k 页面
         base_topk_indices = scores.argsort(dim=-1, descending=True)[:args.top_k].tolist()
         base_topk_scores = scores[base_topk_indices].tolist()
-        sample["base_pages_ranking"] = str([idx+1 for idx in base_topk_indices])
-        sample["base_pages_scores"] = str(base_topk_scores)
-        print(f"Base Top-K Pages: {[idx+1 for idx in base_topk_indices]}")
+        base_pages_ranking = str([idx+1 for idx in base_topk_indices])
+        base_pages_scores = str(base_topk_scores)
+        print(f"Base Top-K Pages: {base_pages_ranking}")
         
         min_score = torch.min(scores).item()
         max_score = torch.max(scores).item()
@@ -143,7 +143,7 @@ class DocumentRetriever:
         torch.cuda.empty_cache()
 
         print(f"Total Pages {all_embeds.shape[0]}; VLM Query Times: {vlm_query_times}")
-        return evidence_pages, page_scores
+        return evidence_pages, page_scores, base_pages_ranking, base_pages_scores
 
 
 if __name__ == "__main__":
@@ -200,10 +200,12 @@ if __name__ == "__main__":
                 print(f'Error in graph', target_graph)
                 target_graph = defaultdict(list)
                 
-            ranked_pages, page_scores = doc_retriever.vlm_retrieve(query, target_doc_embedding, target_graph, target_doc, beam_width=args.beam_width, max_hop=args.max_hop, verbose=args.beam_verbose)
+            ranked_pages, page_scores, ranked_base_pages, base_pages_scores = doc_retriever.vlm_retrieve(query, target_doc_embedding, target_graph, target_doc, beam_width=args.beam_width, max_hop=args.max_hop, verbose=args.beam_verbose)
         
         sample["pages_ranking"] = str(ranked_pages)
         sample["pages_scores"] = str(page_scores)
+        sample["base_pages_ranking_"] = str(ranked_base_pages)
+        sample["base_pages_scores"] = str(base_pages_scores)
         if "evidence_pages" in sample:
             print("Ground-truth", sample["evidence_pages"])
         print("Prediction", ranked_pages[:5], "\n")
