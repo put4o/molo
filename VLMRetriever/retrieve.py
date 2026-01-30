@@ -75,6 +75,14 @@ class DocumentRetriever:
     
     def vlm_retrieve(self, query, all_embeds, graph, doc_id, beam_width=3, max_hop=5, verbose=True):
         scores = self.compute_scores(query, all_embeds)
+        
+        # 保存基于向量相似度的初始 top-k 页面
+        base_topk_indices = scores.argsort(dim=-1, descending=True)[:args.top_k].tolist()
+        base_topk_scores = scores[base_topk_indices].tolist()
+        sample["base_pages_ranking"] = str([idx+1 for idx in base_topk_indices])
+        sample["base_pages_scores"] = str(base_topk_scores)
+        print(f"Base Top-K Pages: {[idx+1 for idx in base_topk_indices]}")
+        
         min_score = torch.min(scores).item()
         max_score = torch.max(scores).item()
         score_range = max_score - min_score if max_score > min_score else 1.0
@@ -181,6 +189,9 @@ if __name__ == "__main__":
         target_doc_embedding = doc2emb[target_doc]
         if args.method == "base":
             ranked_pages, page_scores = doc_retriever.base_retrieve(query, target_doc_embedding, top_k=args.top_k)
+            print(f"Top-K Pages: {ranked_pages}")
+            sample["base_pages_ranking"] = str(ranked_pages)
+            sample["base_pages_scores"] = str(page_scores)
         elif args.method == "beamsearch":
             target_graph = doc2graph.get(target_doc, defaultdict(list))
             try:
