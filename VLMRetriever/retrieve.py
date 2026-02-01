@@ -87,18 +87,28 @@ class DocumentRetriever:
         max_score = torch.max(scores).item()
         score_range = max_score - min_score if max_score > min_score else 1.0
     
+        # 页面相似度向量归一化
         vlm_score_cache, vlm_query_times = {}, 0
         score_dict = {i: (scores[i].item() - min_score) / score_range for i in range(scores.shape[0])} # score normalization
 
-        # Initialize the beam search 
+        # 获取top-k个页面摘要，存入缓存，避免重复计算
+
+        #根据摘要，调用摘要打分函数，对页面与问题的相关度打分，分数融合
+
+        #根据分数进行重排序
+       
+        # Initialize the beam search 束搜索算法初始化
+        # 将所有页面的相似度分数降序排列，取前beam_width个分数最高的页面
         beam = scores.argsort(dim=-1, descending=True)[:beam_width].tolist()
         visited = set(beam)
 
         for node in beam: 
+            # 基于 VLM（视觉语言模型）的页面相关性打分函数，用于判断某个文档页面与查询问题的相关程度（1-5 分）
+            #修改，传入摘要一起评分
             vlm_score = query_vlm_relevance(query, (doc_id, node+1), vlm_model)
             vlm_query_times += 1
-            vlm_score_cache[node] = vlm_score
-            norm_vlm_score = (vlm_score - 1.0) / 4.0 
+            vlm_score_cache[node] = vlm_score  # ③ 缓存 VLM 结果（避免重复查询）
+            norm_vlm_score = (vlm_score - 1.0) / 4.0  # ④ VLM 分数归一化（1-5分 → 0-1）
 
             combined_score = args.alpha * score_dict[node] + (1.0 - args.alpha) * norm_vlm_score
             score_dict[node] = combined_score
@@ -117,21 +127,21 @@ class DocumentRetriever:
                     if neighbor not in visited:
                         visited.add(neighbor)
 
-                        sim_score = score_dict[neighbor]
+                        sim_score = score_dict[neighbor]# 获取该邻居的原始分数（向量相似度或之前融合的分数）
+                        #打分，分数归一化，融合
                         vlm_score = query_vlm_relevance(query, (doc_id, neighbor+1), vlm_model)
                         vlm_query_times += 1
                         vlm_score_cache[neighbor] = vlm_score
                         norm_vlm_score = (vlm_score - 1.0) / 4.0
-
                         combined_score = args.alpha * sim_score + (1.0 - args.alpha) * norm_vlm_score
                         score_dict[neighbor] = combined_score
-                        candidates.append((neighbor, combined_score))
-                        result_dict[neighbor] = combined_score
+                        candidates.append((neighbor, combined_score))  # 添加到候选列表
+                        result_dict[neighbor] = combined_score  # 加入最终结果字典
             
             if not candidates:
                 break 
 
-            candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_width]
+            candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_width] #候选列表里取分数最高的继续
             beam = [node for node, _ in candidates]
             if verbose:
                 print(f"Current Beam: {[node_id+1 for node_id in beam]}; Corresponding Scores: {[round(score_dict[node], 3) for node in beam]}")
@@ -179,6 +189,7 @@ if __name__ == "__main__":
         from VLMModels.Qwen_VL import init_model, get_response_concat
         vlm_model = init_model(args.model_name, device=device)
         doc2graph = {}
+        # 为每个文档构建页面图（Page Graph），以便后续进行基于图的页面检索。
         for doc_id, doc_emb in tqdm(doc2emb.items(), desc="Constructing Page Graph"):
             cur_graph = construct_page_graph(doc_emb, threshold=args.threshold, sim_measure=args.sim_measure)
             doc2graph[doc_id] = deepcopy(cur_graph)
@@ -193,6 +204,7 @@ if __name__ == "__main__":
             sample["base_pages_ranking"] = str(ranked_pages)
             sample["base_pages_scores"] = str(page_scores)
         elif args.method == "beamsearch":
+            #获取对应文档的图对象
             target_graph = doc2graph.get(target_doc, defaultdict(list))
             try:
                 assert target_graph is not None
