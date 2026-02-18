@@ -6,7 +6,8 @@ from openai import OpenAI
 OPENAI_CONFIG = {
     "MODEL": "gpt-4o-mini",
     "ENDPOINT": "https://api.chatanywhere.tech/v1/chat/completions",
-    "API_KEY": "sk-PXZNQeaNDDt8ci8UD9vLcDry31NwenEYXnMsoQupcNDl5MeY",
+    # "API_KEY": "sk-PXZNQeaNDDt8ci8UD9vLcDry31NwenEYXnMsoQupcNDl5MeY",
+    "API_KEY": "sk-h1d4TQBqpCFXBgKq9Tu6XyUqNnhUBfNQ6MgIiSyf89aQJLWw",
 }
 
 
@@ -137,3 +138,57 @@ def invoke_opensource_llm(model_name, content):
     resp = response.json()
     prediction = resp["choices"][0]["message"]["content"]
     return  prediction
+
+
+def invoke_gpt4o_vision_api(base64_images_list, prompt_text, max_tokens=2048, temperature=0.1):
+    """
+    Invoke GPT-4o API with Vision support.
+
+    Args:
+        base64_images_list (list[str]): List of base64 encoded PNG image strings.
+        prompt_text (str): The text prompt to send to the model.
+        max_tokens (int): Maximum tokens for response
+        temperature (float): Temperature for sampling
+
+    Returns:
+        str: The generated summary.
+    """
+    # Construct the content list for vision input
+    messages_content = [{"type": "text", "text": prompt_text}]
+    for img_b64 in base64_images_list:
+        messages_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{img_b64}",
+                "detail": "high"
+            }
+        })
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENAI_CONFIG['API_KEY']}",
+    }
+
+    payload = {
+        "model": "gpt-4o", # Explicitly use gpt-4o for vision tasks
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "user",
+                "content": messages_content
+            }
+        ],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    try:
+        response = requests.post(OPENAI_CONFIG["ENDPOINT"], headers=headers, json=payload, timeout=500)
+        response.raise_for_status()
+        return response.json()['choices'][0]['message']['content'].strip()
+    except Exception as e:
+        print(f'[ERROR] OpenAI Vision API error: {e}')
+        raise

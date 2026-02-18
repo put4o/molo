@@ -6,23 +6,25 @@ import fitz  # PyMuPDF, imported as fitz
 import pandas as pd
 from tqdm import tqdm
 import ast  # For safely evaluating string representations of lists if needed
+import requests  # Added for external API calls
 from utils.openai_helper import initialize_client
 import argparse  # Added for command-line argument parsing
 import random  # For random subsampling
 import json  # For JSON serialization
 from joblib import Parallel, delayed  # For parallelization
-from utils.pipeline_utils import generate_hash
+# from utils.pipeline_utils import generate_hash
+from LLMBaseline.apis import invoke_gpt4o_api, invoke_gpt4o_vision_api
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Document page summarization with LLMs")
     
     # Data paths
-    parser.add_argument("--data_base_path", type=str, default="data/MMLongBench/documents",
+    parser.add_argument("--data_base_path", type=str, default="/gz-data/dataset/MMLong/",
                         help="Base path to PDF documents")
-    parser.add_argument("--input_file", type=str, default="data/MMLongBench/samples.json",
+    parser.add_argument("--input_file", type=str, default="/gz-data/dataset/samples_MMLong.json",
                         help="Input JSON file with questions and document references")
-    parser.add_argument("--output_dir", type=str, default="outputs/qwen25_32b/summaries",
+    parser.add_argument("--output_dir", type=str, default="/gz-data/dataset/summaries/qwen25_32b",
                         help="Output directory to save result files")
     
     # Model configuration
@@ -41,7 +43,7 @@ def parse_arguments():
                         help="DPI for rendering PDF pages")
     parser.add_argument("--max_tokens", type=int, default=2048,
                         help="Maximum tokens for LLM response")
-    parser.add_argument("--prompt_file", type=str, default="prompts/general_summary_prompt.txt",
+    parser.add_argument("--prompt_file", type=str, default="prompt/general_summary_prompt.txt",
                         help="Path to the prompt file")
     
     # Subsampling parameter
@@ -53,8 +55,8 @@ def parse_arguments():
                         help="Extract text from PDF pages and include it in the prompt")
     
     # Parallelization parameter
-    parser.add_argument("--n_jobs", type=int, default=32,
-                        help="Number of parallel jobs for page processing. Default is -1 (use all cores).")
+    parser.add_argument("--n_jobs", type=int, default=8,
+                        help="Number of parallel jobs for page processing. Default is 4 to avoid memory overflow.")
     
     # Verbosity parameter
     parser.add_argument("--verbose", action="store_true", default=False,
@@ -64,12 +66,16 @@ def parse_arguments():
     parser.add_argument("--skip_existing", action="store_true", default=False,
                         help="Skip processing if output file already exists")
     
+    # Use external API parameter
+    parser.add_argument("--use_external_api", action="store_true", default=False,
+                        help="Use external API (e.g., OpenAI GPT-4o) instead of local API")
+    
     return parser.parse_args()
 
 # Import helper functions from target_page_qa.py
-from modules.step03_target_page_qa import convert_pdf_pages_to_base64_images
+from utils.summarize import convert_pdf_pages_to_base64_images
 
-def query_llm_for_summary(base64_images_list: list[str], model_name: str, client, max_tokens: int, prompt_file: str, page_texts: list[str] = None) -> str | None:
+def query_llm_for_summary(base64_images_list: list[str], model_name: str, client, max_tokens: int, prompt_file: str, page_texts: list[str] = None, use_external_api: bool = False) -> str | None:
     """
     Sends a list of base64 encoded images to the LLM to generate a summary.
 
@@ -80,6 +86,7 @@ def query_llm_for_summary(base64_images_list: list[str], model_name: str, client
         max_tokens (int): Maximum tokens for response
         prompt_file (str): Path to the prompt template file
         page_texts (list[str]): List of text extracted from PDF pages
+        use_external_api (bool): Whether to use external API (e.g., OpenAI GPT-4o)
 
     Returns:
         str | None: The LLM's response text, or None if an error occurs.
@@ -97,35 +104,50 @@ def query_llm_for_summary(base64_images_list: list[str], model_name: str, client
         text_content = "\n\n".join(page_texts)
     prompt = prompt.format(PAGE_TEXT=text_content)
 
-    messages_content = [{"type": "text", "text": prompt}]
-    for img_b64 in base64_images_list:
-        messages_content.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{img_b64}",
-                "detail": "high"  # or "low" or "high"
-            }
-        })
-
-    try:
-        response = client.create(
-            model=model_name,
-            messages=[
-                {
-                    "role": "user",
-                    "content": messages_content
+    if use_external_api:
+        # Use external API (e.g., OpenAI GPT-4o)
+        try:
+            response = invoke_gpt4o_vision_api(
+                base64_images_list=base64_images_list,
+                prompt_text=prompt,
+                max_tokens=max_tokens,
+                temperature=0.1
+            )
+            return response
+        except Exception as e:
+            print(f"Error calling external Vision API: {e}")
+            return None
+    else:
+        # Use local API (OpenAI Wrapper)
+        messages_content = [{"type": "text", "text": prompt}]
+        for img_b64 in base64_images_list:
+            messages_content.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{img_b64}",
+                    "detail": "high"  # or "low" or "high"
                 }
-            ],
-            max_tokens=max_tokens,
-            temperature=0.1,
-            top_p=0.001,
-            extra_body={"repetition_penalty": 1.05},
-        )
-        summary = response.choices[0].message.content
-        return summary
-    except Exception as e:
-        print(f"Error calling LLM API: {e}")
-        return None
+            })
+
+        try:
+            response = client.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": messages_content
+                    }
+                ],
+                max_tokens=max_tokens,
+                temperature=0.1,
+                top_p=0.001,
+                extra_body={"repetition_penalty": 1.05},
+            )
+            summary = response.choices[0].message.content
+            return summary
+        except Exception as e:
+            print(f"Error calling LLM API: {e}")
+            return None
 
 def extract_summary(response: str) -> str:
     """
@@ -151,69 +173,78 @@ def extract_summary(response: str) -> str:
     except Exception as e:
         raise e
 
-def process_single_page(doc_id, page_num, pdf_file_path, args, client=None):
+def process_single_page(doc_id, page_num, pdf_file_path, config):
     """
     Process a single page of a document and generate summary.
-    
+
     Args:
         doc_id (str): Document ID
         page_num (int): Page number
         pdf_file_path (str): Path to the PDF file
-        args: Command line arguments
-        client: OpenAI client wrapper (if None, will create a new client for thread safety)
-        
+        config (dict): A dictionary containing necessary configuration parameters (model, api_key_file, etc.)
+                        to avoid passing complex objects for parallelization.
+
     Returns:
         dict: Results for this page
     """
     try:
         # Create a new client for each worker to ensure thread safety
-        if client is None:
-            local_client = initialize_client(args)
-        else:
-            local_client = client
-            
-        if local_client is None:
-            return {
-                'page_num': page_num,
-                'error': 'Failed to initialize OpenAI client'
-            }
-            
+        # Skip this if using external API
+        use_external_api = config.get('use_external_api', False)
+        local_client = None
+
+        if not use_external_api:
+            client = initialize_client(config)
+            if client is None:
+                return {
+                    'page_num': page_num,
+                    'error': 'Failed to initialize OpenAI client'
+                }
+        
         # Load page text from pre-extracted JSON if requested
-        if args.extract_text:
+        if config.get('extract_text', False):
             text_file_path = pdf_file_path.replace('.pdf', '.txt').replace('/documents/', '/text_doc/')
             try:
                 with open(text_file_path, 'r') as f:
                     pdf_data = json.load(f)
                 page_text = str(pdf_data[page_num - 1]) if page_num - 1 < len(pdf_data) else ""
             except Exception as e:
-                if args.verbose:
+                if config.get('verbose', False):
                     print(f"Failed to load text for {doc_id}, page {page_num}: {e}")
                 page_text = ""
         else:
             page_text = ""
 
         # Convert the current page to base64 image without extracting text from PDF
-        base64_images, _ = convert_pdf_pages_to_base64_images(pdf_file_path, [page_num], args.image_dpi, False)
+        base64_images, _ = convert_pdf_pages_to_base64_images(pdf_file_path, [page_num], config.get('image_dpi', 150), False)
         page_texts = [page_text]
 
         if not base64_images:
-            if args.verbose:
+            if config.get('verbose', False):
                 print(f"Failed to get image for {doc_id}, page {page_num}. Skipping LLM call.")
             return {
                 'page_num': page_num,
                 'error': 'Failed to convert page to image'
             }
 
-        if args.verbose:
+        if config.get('verbose', False):
             print(f"Successfully converted page {page_num} to image for LLM.")
         
         # Generate summary for this page
-        response = query_llm_for_summary(base64_images, args.model, local_client, args.max_tokens, args.prompt_file, page_texts)
+        response = query_llm_for_summary(
+            base64_images,
+            config.get('model'),
+            local_client, # Pass client (None if external API)
+            config.get('max_tokens', 2048),
+            config.get('prompt_file'),
+            page_texts,
+            use_external_api
+        )
         
         if response:
             summary = extract_summary(response)
             
-            if args.verbose:
+            if config.get('verbose', False):
                 print(f"Generated summary for {doc_id}, page {page_num}")
             
             return {
@@ -221,14 +252,14 @@ def process_single_page(doc_id, page_num, pdf_file_path, args, client=None):
                 'summary': summary
             }
         else:
-            if args.verbose:
+            if config.get('verbose', False):
                 print(f"Failed to get a summary from LLM for {doc_id}, page {page_num}.")
             return {
                 'page_num': page_num,
                 'error': 'LLM query failed'
             }
     except Exception as e:
-        if args.verbose:
+        if config.get('verbose', False):
             print(f"Error processing page {page_num} of document {doc_id}: {e}")
         return {
             'page_num': page_num,
@@ -298,10 +329,24 @@ def summarize_document_pages(dataset_df: pd.DataFrame, args, client):
             # Create a list of page numbers to process
             page_nums = list(range(1, total_pages + 1))
             
+            # Prepare a config dictionary for the worker function to avoid pickling issues
+            worker_config = {
+                'model': args.model,
+                'max_tokens': args.max_tokens,
+                'prompt_file': args.prompt_file,
+                'image_dpi': args.image_dpi,
+                'extract_text': args.extract_text,
+                'verbose': args.verbose,
+                'use_external_api': args.use_external_api,
+                'api_key_file': args.api_key_file,
+                'base_url': args.base_url,
+                'cache_seed': args.cache_seed
+            }
+
             # Don't pass the client to ensure each worker creates its own client instance for thread safety
             page_results = Parallel(n_jobs=args.n_jobs)(
                 delayed(process_single_page)(
-                    doc_id, page_num, pdf_file_path, args, None
+                    doc_id, page_num, pdf_file_path, worker_config
                 ) for page_num in tqdm(page_nums, desc=f"Pages of {doc_id}", leave=False)
             )
             
@@ -335,11 +380,15 @@ def main():
     # Parse command line arguments
     args = parse_arguments()
     
-    # Initialize the OpenAI client
-    client = initialize_client(args)
-    if client is None:
-        print("Exiting script as OpenAI client could not be initialized.")
-        return
+    # Initialize the OpenAI client (Only for local API)
+    client = None
+    if not args.use_external_api:
+        client = initialize_client(args)
+        if client is None:
+            print("Exiting script as OpenAI client could not be initialized.")
+            return
+    else:
+        print("Using external API for summarization. Skipping local client initialization.")
     
     # Load the dataset
     try:
